@@ -85,8 +85,8 @@ def fit(
 
                 # Check for NaNs in model output
                 if torch.isnan(output).any(): print(f"NaN found in model output @ batch {i}")
-                loss1 = criterion1(output, mask)
-                loss2 = criterion2(output, mask)
+                loss1 = criterion1(output.float(), mask) 
+                loss2 = criterion2(output.float(), mask)
                 loss = (loss1 + loss2) / accumulation_steps
 
             scaler.scale(loss).backward()
@@ -95,8 +95,8 @@ def fit(
             accuracy += pixel_accuracy(output, mask)
 
             if (i + 1) % accumulation_steps == 0 or (i + 1) == len(train_loader):
-                # scaler.unscale_(optimizer)
-                # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=2.0)
                 scaler.step(optimizer)
                 scaler.update()
                 optimizer.zero_grad(set_to_none=True)
@@ -144,8 +144,8 @@ def fit(
             if abs(min_loss - test_loss/len(val_loader)) > 0.002:
               not_improve += 1
               print(f'Loss Not exceed best for {not_improve} time')
-            if not_improve == 5:
-                print('Loss not decrease for 5 times, Stop Training')
+            if not_improve == 10:
+                print(f'Loss not decrease for {not_improve} times, Stop Training')
                 break
 
         print(
@@ -192,7 +192,7 @@ use_checkpoint = 'checkpoint.pth'
 start_epoch = 0
 last_loss = 1e2
 last_not_improve = 0
-# start_epoch, last_loss, last_not_improve = load_checkpoint(model, optimizer, scheduler, scaler, path=use_checkpoint)
+start_epoch, last_loss, last_not_improve = load_checkpoint(model, optimizer, scheduler, scaler, path=use_checkpoint)
 
 torch.autograd.set_detect_anomaly(True)
 history = fit(

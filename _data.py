@@ -85,8 +85,8 @@ train_set = BCSSDataset(TRAIN_IMAGE_PATH, TRAIN_MASK_PATH, X_train, mean, std, t
 val_set   = BCSSDataset(VAL_IMAGE_PATH  , VAL_MASK_PATH  , X_val  , mean, std, transforms_val)
 
 #dataloader
-batch_size = 32
-num_workers = 2 # 可以根據實際情況調整
+batch_size = 64
+num_workers = 8 # 可以根據實際情況調整
 
 train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 val_loader = DataLoader(val_set, batch_size=1, shuffle=False, num_workers=num_workers)
