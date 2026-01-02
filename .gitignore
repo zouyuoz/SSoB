@@ -1,0 +1,18 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# data
+BCSS_ori
+lab-4-semantic-segmentation-on-bcss-639401.zip
+
+# checkpoint
+*.pth
+*.pt

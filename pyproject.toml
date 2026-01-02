@@ -1,0 +1,18 @@
+[project]
+name = "ssob"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12.12"
+dependencies = [
+    "albumentations>=2.0.8",
+    "kaggle>=1.8.3",
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.0",
+    "pandas>=2.3.3",
+    "pillow>=12.1.0",
+    "torch>=2.9.1",
+    "torchvision>=0.24.1",
+    "tqdm>=4.67.1",
+    "unzip>=1.0.0",
+]
