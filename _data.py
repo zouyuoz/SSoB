@@ -64,9 +64,15 @@ std=[0.229, 0.224, 0.225]
 
 # For TRAIN
 transforms_train = A.Compose([
-    A.HorizontalFlip(p=0.5),
-    A.VerticalFlip(p=0.5),
+    A.HorizontalFlip(),
+    A.VerticalFlip(),
     A.RandomRotate90(),
+    A.Affine(
+	    scale=(0.95, 1.05),                # 輕微縮放 (±5%)
+	    translate_percent=(-0.05, 0.05),   # 輕微平移 (±5%)
+	    rotate=(-10, 10),                  # 輕微旋轉 (±10度)
+	    shear=(-5, 5),                     # 輕微錯切 (±5度)
+	),
     A.RandomResizedCrop(size=(224, 224), scale=(0.9375, 1), ratio=(1, 1)),
     # A.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.05, p=0.5), # only works on image, mask won't
     A.Normalize(mean=mean, std=std, max_pixel_value=255.0, p=1.0),
@@ -85,8 +91,8 @@ train_set = BCSSDataset(TRAIN_IMAGE_PATH, TRAIN_MASK_PATH, X_train, mean, std, t
 val_set   = BCSSDataset(VAL_IMAGE_PATH  , VAL_MASK_PATH  , X_val  , mean, std, transforms_val)
 
 #dataloader
-batch_size = 64
+batch_size = 16
 num_workers = 8 # 可以根據實際情況調整
 
 train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-val_loader = DataLoader(val_set, batch_size=1, shuffle=False, num_workers=num_workers)
+val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, num_workers=num_workers)

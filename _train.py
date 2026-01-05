@@ -1,31 +1,29 @@
 from _init import *
-from _val import *
-from _UNet import *
 from _data import *
+from _loss import *
+from _UNet import *
 
 # Helper functions saves the states
-CHECKPOINT = "checkpoint.pth"
-HISTORY = "history_checkpoint.pth"
+CHECKPOINT = "checkpoint_B.pth"
+HISTORY = "history_checkpoint_B.pth"
 
-def save_checkpoint(epoch, model, optimizer, scheduler, scaler, loss, not_improve, path=CHECKPOINT):
+def save_checkpoint(epoch, model, optimizer, scheduler, loss, not_improve, path=CHECKPOINT):
     ckpt = {
         'epoch': epoch,
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
         'scheduler_state_dict': scheduler.state_dict(),
-        'scaler_state_dict': scaler.state_dict(),
         'loss': loss,
         'not_improve': not_improve
     }
     torch.save(ckpt, path)
-    print(f"✅ Checkpoint saved at epoch {epoch+1} → {path}")
+    print(f"💾 Checkpoint saved at epoch {epoch+1} → {path}")
 
-def load_checkpoint(model, optimizer, scheduler, scaler, path=CHECKPOINT):
+def load_checkpoint(model, optimizer, scheduler, path=CHECKPOINT):
     ckpt = torch.load(path)
     model.load_state_dict(ckpt['model_state_dict'])
     optimizer.load_state_dict(ckpt['optimizer_state_dict'])
     scheduler.load_state_dict(ckpt['scheduler_state_dict'])
-    scaler.load_state_dict(ckpt['scaler_state_dict'])
     start_epoch = ckpt['epoch'] + 1
     loss = ckpt['loss'] if 'loss' in ckpt else np.inf
     not_improve = ckpt['not_improve'] if 'not_improve' in ckpt else 0
@@ -39,7 +37,7 @@ def load_checkpoint(model, optimizer, scheduler, scaler, path=CHECKPOINT):
 def save_history_checkpoint(e, history_data, path=HISTORY):
     ckpt = {'last_finished_epoch': e, 'history': history_data}
     torch.save(ckpt, path)
-    print(f"✅ History saved to: {path}")
+    print(f"💾 History saved to: {path}")
     return
 
 def get_lr(optimizer):
@@ -47,9 +45,19 @@ def get_lr(optimizer):
         return param_group['lr']
 
 def fit(
-    start_epoch, epochs, model, train_loader, val_loader,
-    criterion1, criterion2, optimizer, scheduler, scaler,
-    LL, LNI, avaliable_training_time, accumulation_steps=4
+    start_epoch,
+    epochs,
+    model,
+    train_loader,
+    val_loader,
+    criterion1,
+    criterion2,
+    optimizer,
+    scheduler,
+    LL,
+    LNI,
+    avaliable_training_time,
+    accumulation_steps=4
 ):
     train_losses, test_losses = [], []
     val_iou, val_acc, train_iou, train_acc, lrs = [], [], [], [], []
@@ -77,28 +85,25 @@ def fit(
 
         # training phase
         model.train()
-        for i, (image, mask) in enumerate(tqdm(train_loader)):
+        for i, (image, mask) in enumerate(tqdm(train_loader, bar_format='{l_bar}{bar:60}{r_bar}')):
             image, mask = image.to(device), mask.to(device)
 
-            with torch.amp.autocast('cuda', enabled=True):
-                output = model(image)
+            output = model(image)
 
-                # Check for NaNs in model output
-                if torch.isnan(output).any(): print(f"NaN found in model output @ batch {i}")
-                loss1 = criterion1(output.float(), mask) 
-                loss2 = criterion2(output.float(), mask)
-                loss = (loss1 + loss2) / accumulation_steps
+            # Check for NaNs in model output
+            if torch.isnan(output).any(): print(f"NaN found in model output @ batch {i}")
+            loss1 = criterion1(output, mask) 
+            loss2 = criterion2(output, mask)
+            loss = (loss1 + loss2) / accumulation_steps
 
-            scaler.scale(loss).backward()
+            loss.backward()
             running_loss += loss.item() * accumulation_steps
             iou_score += mIoU(output, mask, n_classes=3)
             accuracy += pixel_accuracy(output, mask)
 
             if (i + 1) % accumulation_steps == 0 or (i + 1) == len(train_loader):
-                scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=2.0)
-                scaler.step(optimizer)
-                scaler.update()
+                optimizer.step()
                 optimizer.zero_grad(set_to_none=True)
 
             scheduler.step()
@@ -108,14 +113,13 @@ def fit(
         model.eval()
         test_loss, test_accuracy, val_iou_score = 0.0, 0.0, 0.0
         with torch.no_grad():
-            for i, (image, mask) in enumerate(tqdm(val_loader)):
+            for i, (image, mask) in enumerate(tqdm(val_loader, bar_format='{l_bar}{bar:60}{r_bar}')):
                 image, mask = image.to(device), mask.to(device)
 
-                with torch.amp.autocast('cuda', enabled=True):
-                    output = model(image)
-                    loss1 = criterion1(output, mask)
-                    loss2 = criterion2(output, mask)
-                    loss = loss1 + loss2
+                output = model(image)
+                loss1 = criterion1(output, mask)
+                loss2 = criterion2(output, mask)
+                loss = loss1 + loss2
 
                 val_iou_score += mIoU(output, mask, n_classes=3)
                 test_accuracy += pixel_accuracy(output, mask)
@@ -135,7 +139,7 @@ def fit(
         die_out = avaliable_training_time - (time.time()-fit_time)/60 < avg_epoch_t
 
         if min_loss >= (test_loss/len(val_loader)):
-            print('Loss Decreasing.. {:.3f} >> {:.3f} '.format(min_loss, (test_loss/len(val_loader))))
+            print('👏 Loss Decreasing.. {:.3f} >> {:.3f} '.format(min_loss, (test_loss/len(val_loader))))
             min_loss = (test_loss/len(val_loader))
             not_improve = 0
             last_best_epoch = e
@@ -143,13 +147,13 @@ def fit(
         else:
             if abs(min_loss - test_loss/len(val_loader)) > 0.002:
               not_improve += 1
-              print(f'Loss Not exceed best for {not_improve} time')
-            if not_improve == 10:
-                print(f'Loss not decrease for {not_improve} times, Stop Training')
-                break
+              print(f'👮 Loss Not exceed best for {not_improve} time')
+            # if not_improve == 10:
+            #     print(f'Loss not decrease for {not_improve} times, Stop Training')
+            #     break
 
         print(
-            f"Epoch[{e+1}/{epochs}] "
+            f"🏷️  Epoch[{e+1}/{epochs}] "
             f"Train Loss: {running_loss/len(train_loader):.3f}| "
             f"Val Loss: {test_loss/len(val_loader):.3f}| "
             f"Train mIoU: {iou_score/len(train_loader):.3f}| "
@@ -159,19 +163,22 @@ def fit(
         history['last_best_epoch'] = last_best_epoch
         history['run_epochs'] = run_epochs
 
-        save_checkpoint(e, model, optimizer, scheduler, scaler, test_loss/len(val_loader), not_improve)
+        save_checkpoint(e, model, optimizer, scheduler, test_loss/len(val_loader), not_improve)
         save_history_checkpoint(e, history)
         if die_out:
-          print("No time to train, Save the status and end"); break
+            print("No time to train, Save the status and end"); break
 
     print('Total time: ', datetime.timedelta(seconds=int(time.time() - fit_time)))
     return history
 
 # ---
+# model = UNet(n_channels=3, n_classes=3)
 
-model = UNet(n_channels=3, n_classes=3)
+# or
+from _AttnUNet import AttentionUNet
+model = AttentionUNet(in_channels=3, out_channels=3)
 
-max_lr = 1e-2
+max_lr = 5e-3
 start_epoch = 0
 epoch = 100
 weight_decay = 1e-4
@@ -183,21 +190,19 @@ criterion2 = DiceLoss()
 optimizer = torch.optim.AdamW(model.parameters(), lr=max_lr, weight_decay=weight_decay)
 scheduler = torch.optim.lr_scheduler.OneCycleLR(
     optimizer, max_lr, epochs=epoch, steps_per_epoch=len(train_loader),
-    pct_start=0.25, anneal_strategy='cos', div_factor=4.0, final_div_factor=64.0)
-scaler = torch.amp.GradScaler('cuda', enabled=True)
+    div_factor=10.0, final_div_factor=1000.0)
 ATT = 9999
 
 # --- real train ---
-use_checkpoint = 'checkpoint.pth'
 start_epoch = 0
 last_loss = 1e2
 last_not_improve = 0
-start_epoch, last_loss, last_not_improve = load_checkpoint(model, optimizer, scheduler, scaler, path=use_checkpoint)
+use_checkpoint = 'checkpoint_B.pth'
+start_epoch, last_loss, last_not_improve = load_checkpoint(model, optimizer, scheduler, path=use_checkpoint)
 
 torch.autograd.set_detect_anomaly(True)
 history = fit(
     start_epoch, epoch, model, train_loader, val_loader,
-    criterion1, criterion2, optimizer, scheduler, scaler,
-    last_loss, last_not_improve, ATT
+    criterion1, criterion2, optimizer, scheduler,
+    last_loss, last_not_improve, ATT, accumulation_steps=1
 )
-

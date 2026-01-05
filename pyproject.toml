@@ -11,8 +11,12 @@ dependencies = [
     "numpy>=2.4.0",
     "pandas>=2.3.3",
     "pillow>=12.1.0",
+    "pydensecrf",
     "torch>=2.9.1",
     "torchvision>=0.24.1",
     "tqdm>=4.67.1",
     "unzip>=1.0.0",
 ]
+
+[tool.uv.sources]
+pydensecrf = { git = "https://github.com/lucasb-eyer/pydensecrf.git" }

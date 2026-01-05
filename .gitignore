@@ -16,3 +16,7 @@ lab-4-semantic-segmentation-on-bcss-639401.zip
 # checkpoint
 *.pth
 *.pt
+
+# output
+PLOT
+*.csv
