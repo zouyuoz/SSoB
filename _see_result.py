@@ -38,7 +38,7 @@ def plot_lr(history):
     plt.savefig('PLOT/lr.png')
     plt.close()
 
-ckpt = torch.load('history_checkpoint_B.pth')
+ckpt = torch.load('history_checkpoint_C.pth')
 # print(ckpt.keys())
 history = ckpt['history']
 # val_loss = history['last_best_epoch']

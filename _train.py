@@ -4,8 +4,8 @@ from _loss import *
 from _UNet import *
 
 # Helper functions saves the states
-CHECKPOINT = "checkpoint_B.pth"
-HISTORY = "history_checkpoint_B.pth"
+CHECKPOINT = "checkpoint_C.pth"
+HISTORY = "history_checkpoint_C.pth"
 
 def save_checkpoint(epoch, model, optimizer, scheduler, loss, not_improve, path=CHECKPOINT):
     ckpt = {
@@ -40,6 +40,15 @@ def save_history_checkpoint(e, history_data, path=HISTORY):
     print(f"💾 History saved to: {path}")
     return
 
+def load_history_checkpoint(path=HISTORY):
+    if os.path.exists(path):
+        ckpt = torch.load(path)
+        print(f"🔄 History loaded from: {path}")
+        return ckpt['history'] # 返回 history 字典
+    else:
+        print(f"⚠️ History file not found at {path}, starting fresh.")
+        return None
+
 def get_lr(optimizer):
     for param_group in optimizer.param_groups:
         return param_group['lr']
@@ -57,17 +66,33 @@ def fit(
     LL,
     LNI,
     avaliable_training_time,
-    accumulation_steps=4
+    accumulation_steps=4,
+    resume_history=None
 ):
-    train_losses, test_losses = [], []
-    val_iou, val_acc, train_iou, train_acc, lrs = [], [], [], [], []
+    # [修改] 初始化邏輯：如果有 resume_history 就讀取，否則建立空 list
+    if resume_history is not None:
+        train_losses = resume_history['train_loss']
+        test_losses = resume_history['val_loss']
+        train_iou = resume_history['train_miou']
+        val_iou = resume_history['val_miou']
+        train_acc = resume_history['train_acc']
+        val_acc = resume_history['val_acc']
+        lrs = resume_history['lrs']
+        last_best_epoch = resume_history.get('last_best_epoch', 0)
+        run_epochs = resume_history.get('run_epochs', 0)
+        # 注意：die_out 通常不需延續，它是根據當次執行時間判斷
+    else:
+        train_losses, test_losses = [], []
+        val_iou, val_acc, train_iou, train_acc, lrs = [], [], [], [], []
+        last_best_epoch, run_epochs = 0, 0
+
     min_loss = LL
     decrease, not_improve = 1, LNI
-    last_best_epoch, run_epochs = 0, 0
     fit_time = time.time()
     avg_epoch_t = 0.0
     die_out = False
-
+    
+    # 確保 history 字典引用的是上述變數
     history = {
         'train_loss': train_losses, 'val_loss': test_losses,
         'train_miou': train_iou, 'val_miou': val_iou,
@@ -195,14 +220,16 @@ ATT = 9999
 
 # --- real train ---
 start_epoch = 0
-last_loss = 1e2
+last_loss = 1.00
 last_not_improve = 0
-use_checkpoint = 'checkpoint_B.pth'
+use_checkpoint = CHECKPOINT
+resume_history_data = None
 start_epoch, last_loss, last_not_improve = load_checkpoint(model, optimizer, scheduler, path=use_checkpoint)
+resume_history_data = load_history_checkpoint(path=HISTORY)
 
 torch.autograd.set_detect_anomaly(True)
 history = fit(
     start_epoch, epoch, model, train_loader, val_loader,
     criterion1, criterion2, optimizer, scheduler,
-    last_loss, last_not_improve, ATT, accumulation_steps=1
+    last_loss, last_not_improve, ATT, accumulation_steps=4, resume_history=resume_history_data
 )

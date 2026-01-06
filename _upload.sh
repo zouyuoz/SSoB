@@ -2,17 +2,18 @@
 
 # 定義變數 (根據你的 Python 程式碼設定)
 epoch=100
-max_lr=0.01
-batch_size=64 # 請根據你實際的 batch_size 修改
+max_lr=5e-3
+batch_size=16 # 請根據你實際的 batch_size 修改
 
 # 構建 Message 字串
 # 使用 \n 代表換行
-Message="No reach final epoch, loss became nan QQ
+Message="
 num_epochs=${epoch}
 max_lr=${max_lr}
 batch_size=${batch_size}
-using gradient_accumulate=4
-data aug using jitter and crop
+lrScheduler=OneCycle, 10/1000
+using attn unet
+grad accumu = 4
 citerion1=FocalLoss(), no param"
 
 # 輸出檢查

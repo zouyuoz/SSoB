@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12.12"
 dependencies = [
     "albumentations>=2.0.8",
+    "crfseg>=1.0.0",
     "kaggle>=1.8.3",
     "matplotlib>=3.10.8",
     "numpy>=2.4.0",
