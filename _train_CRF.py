@@ -36,7 +36,7 @@ optimizer = optim.AdamW(
 )
 
 # 因為 crfseg 的 forward 回傳 log_softmax，所以使用 NLLLoss
-criterion = nn.NLLLoss() 
+criterion = nn.CrossEntropyLoss() 
 
 # 紀錄最佳驗證損失
 best_val_loss = float('inf')
